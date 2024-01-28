@@ -5,6 +5,8 @@ const browserSync = require('browser-sync').create()
 const uglify = require('gulp-uglify-es').default
 const autoprefixer = require('gulp-autoprefixer')
 const imagemin = require('gulp-imagemin')
+const fonter = require('gulp-fonter')
+const ttf2woff2 = require('gulp-ttf2woff2')
 const del = require('del')
 
 function styles() {
@@ -24,10 +26,9 @@ function styles() {
 function scripts() {
 	return src([
 		'node_modules/jquery/dist/jquery.js',
+		'app/constants/root.js',
+		'app/components/**/*.js',
 		'app/js/main.js'
-
-		// 'app/js/*.js',
-		// '!app/js/main.min.js'
 	])
 		.pipe(concat('main.min.js'))
 		.pipe(uglify())
@@ -36,7 +37,7 @@ function scripts() {
 }
 
 function images() {
-	return src('app/images/**/*')
+	return src(['app/images/**/*'])
 		.pipe(
 			imagemin([
 				imagemin.gifsicle({ interlaced: true }),
@@ -47,7 +48,15 @@ function images() {
 				})
 			])
 		)
-		.pipe(dest('dist/images'))
+		.pipe(dest('app/images'))
+}
+
+function fonts() {
+	return src('app/fonts/*.*')
+		.pipe(fonter({ formats: ['woff', 'ttf'] }))
+		.pipe(src('app/fonts/*.ttf'))
+		.pipe(ttf2woff2())
+		.pipe(dest('app/fonts'))
 }
 
 function cleanDist() {
@@ -61,19 +70,21 @@ function watching() {
 		}
 	})
 
+	watch(['app/components/**/*.scss'], styles)
 	watch(['app/scss/**/*.scss'], styles)
+	watch(['app/components/**/*.js'], scripts)
 	watch(['app/js/**/*.js', '!app/js/main.min.js'], scripts)
-	watch(['app/*.html']).on('change', browserSync.reload)
+	watch(['app/pages/*.html']).on('change', browserSync.reload)
 }
 
 function build() {
 	return src(
 		[
 			'app/css/style.min.css',
-			'app/images/*.*',
+			'app/images/**/*',
 			'app/fonts/*.*',
 			'app/js/main.min.js',
-			'app/**/*.html'
+			'app/pages/*.html'
 		],
 		{ base: 'app' }
 	).pipe(dest('dist'))
@@ -83,7 +94,8 @@ exports.styles = styles
 exports.watching = watching
 exports.scripts = scripts
 exports.images = images
+exports.fonts = fonts
 exports.cleanDist = cleanDist
 
-exports.build = series(cleanDist, images, build)
+exports.build = series(cleanDist, images, fonts, build)
 exports.default = parallel(styles, scripts, watching)
